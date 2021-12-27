@@ -18,7 +18,10 @@ The software package includes the configuration of both the PHY ADIN1100 and ADI
 
 ## 10BASE-T1L Hardware Package
 
+Hardware Package of 10BASE-T1L-MC contains Architectural Level Block Diagram, Gerber, BoM, Schematics for the development purpose, Pre-Scan Reports.
 
 ## 10BASE-T1L Mechanical Package
+
+Mechanical Packages inlcudes CAD Data, Mechanical BoM, Mechanical Drawing, Packaging Instructions.
 
 
