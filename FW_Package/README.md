@@ -45,7 +45,7 @@ Figure 8 shows an example for loading an AIT1L.elf to the device.
 
 Figure 8 shows an example for loading an AIT1L.elf to the device. 
 
-![Figure](Successfully_Programmed_MAX32660.png)
+![Figure](Successfully_Programmed_MAX32660.PNG)
 
 Reference Web Link for Downloading the Software and all the steps for loading the program is shown below:
 
