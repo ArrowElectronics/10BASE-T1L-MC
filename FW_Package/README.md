@@ -12,7 +12,7 @@ enabling the MDIO interface through GPIO Bit Banging, also the UART debugging th
 
 ## Installation Notes
 
-The installation manual followed for the development is as per the Programming Guide given for MAX32660 EVM Kit [(Programming_32660)](Programming_32660)  and following are the steps to be followed for debugging the device: 
+The installation manual followed for the development is as per the Programming Guide given for MAX32660 EVM Kit [(Programming_32660)](Programming_32660.pdf)  and following are the steps to be followed for debugging the device: 
 
 1)	To open the given AIT1L project: page 14-19 in the above-mentioned document
 2)	To build the project: Refer Page no. 6-7
