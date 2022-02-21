@@ -34,7 +34,7 @@
 
 # This is the name of the build output file
 ifeq "$(PROJECT)" ""
-PROJECT=10BASE-T1L-MC_B
+PROJECT=10BASE-T1L-MC_C
 endif
 
 # Specify the target processor
@@ -77,11 +77,11 @@ SRCS += boardsupport.c mdio_gpio.c hal.c adin1100.c adi_phy.c adin1200.c
 #SRCS += sla_header.c
 
 # Where to find source files for this test
-VPATH=.
+VPATH= src bsp common common/hal common/hal/mdio_gpio 
 VPATH += $(CMSIS_ROOT)/Device/Maxim/$(TARGET_UC)/Source
 
 # Where to find header files for this test
-IPATH = .
+IPATH = common/hal/mdio_gpio bsp inc common common/hal
 
 # Enable assertion checking for development
 PROJ_CFLAGS+=-DMXC_ASSERT_ENABLE 
@@ -132,7 +132,7 @@ all:
 ifneq "$(LINKER)" "$(TARGET_LC)_ram.ld"	  #This is in for the future when signing is needed.
 # 	arm-none-eabi-objcopy $(BUILD_DIR)/$(PROJECT).elf -R .sig -O binary $(BUILD_DIR)/$(PROJECT).bin
 	arm-none-eabi-objcopy $(BUILD_DIR)/$(PROJECT).elf -O binary $(BUILD_DIR)/$(PROJECT).bin	
-	arm-none-eabi-objcopy $(BUILD_DIR)/$(PROJECT).elf -O ihex $(BUILD_DIR)/$(PROJECT).hex
+	arm-none-eabi-objcopy $(BUILD_DIR)/$(PROJECT).elf -O ihex $(BUILD_DIR)/$(PROJECT).hex	
 # 	$(CA_SIGN_BUILD) $(BUILD_DIR)/$(PROJECT).bin $(TEST_KEY)
 # 	arm-none-eabi-objcopy  $(BUILD_DIR)/$(PROJECT).elf --update-section .sig=$(BUILD_DIR)/$(PROJECT).bin.sig
 endif

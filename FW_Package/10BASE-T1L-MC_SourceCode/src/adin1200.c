@@ -90,7 +90,7 @@ adi_eth_Result_e adin1200_config (void)
 	/* Setting bit 10 for enabling configuration set for LED_0 Pin  */
 	return_val = HAL_1200PhyWrite(PHYADDR_1200, LED_CTRL_1_1200, 0x0401);
 
-	/* Setting 0:3 bits for LED_0 to blink if there is activity in phy */
+	/* Setting 0:3 bits for LED_0 to blink if there is activity in PHY */
 	return_val = HAL_1200PhyWrite(PHYADDR_1200, LED_CTRL_2_1200, 0x2109);
 
 	return return_val;

@@ -1,7 +1,7 @@
 /*
  *---------------------------------------------------------------------------
  *
- * Copyright (c) 2020 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2021 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary <and confidential> to Analog Devices, Inc.
  * and its licensors.By using this software you agree to the terms of the
  * associated Analog Devices Software License Agreement.
@@ -14,7 +14,13 @@
 #include <stdbool.h>
 #include "gpio.h"
 
-//#include "adi_common.h"
+#include "adi_eth_common.h"
+
+
+#define MMD_ACR_ADDRESS                 (0x0000U)
+#define MMD_ACR_DATA 		        (0x4000U)
+#define MMD_ACR_DATA_RW_INCREMENT       (0x8000U)
+#define MMD_ACR_DATA_WRITE_INCREMENT    (0xC000U)
 
 #define DEVTYPE(a)         (a >> 16)
 #define REGADDR(a)         (a & 0xFFFF)
@@ -70,16 +76,13 @@ static void bitsOut(uint32_t  value, int32_t nbBits)
  *
  * @sa
  */
-static uint32_t bitsIn (void)
+static uint16_t bitsIn (void)
 {
     /* Input a value from the MII PHY management interface. */
     unsigned int i,val = 0;
 
     BSP_SetPinMDC(false);
     //delay ();
-
-    /* Capture the value of the second turnaround bit */
-    val |= BSP_GetPinMDInput();
     for (i = 0; i < 16; i++)
     {
         val <<= 1;
@@ -93,7 +96,7 @@ static uint32_t bitsIn (void)
    // delay ();
     BSP_SetPinMDC(false);
 
-   return (val & 0x1FFFF);
+   return (val & 0xFFFF);
 }
 
 /*
@@ -116,7 +119,7 @@ uint32_t mdioGPIORead(uint8_t phyAddr, uint8_t phyReg, uint16_t *phyData )
 
 
     uint32_t temp = 0;
-    uint32_t dataIn = 0;
+    uint16_t dataIn = 0;
 
     tempBuffer[i++] = 0xff;
     tempBuffer[i++] = 0xff;
@@ -138,13 +141,11 @@ uint32_t mdioGPIORead(uint8_t phyAddr, uint8_t phyReg, uint16_t *phyData )
     BSP_ChangeMDIPinDir(true);//output
     temp = (tempBuffer[0] << 24) | (tempBuffer[1] <<16) | (tempBuffer[2] << 8) | tempBuffer[3];
     bitsOut(temp, 32);
-    temp = (tempBuffer[4] << 24) | (tempBuffer[5] <<16) | (tempBuffer[2] << 6) | tempBuffer[7];
+    temp = (tempBuffer[4] << 24) | (tempBuffer[5] <<16) | (tempBuffer[6] << 8) | tempBuffer[7];
     bitsOut(temp, 15);
     BSP_ChangeMDIPinDir(false);//input
     dataIn = bitsIn();
-    *phyData = (dataIn & 0xFFFF);
-
-    error = (dataIn & 0x10000) >> 16;
+    *phyData = dataIn;
 
     return error;
 }
@@ -190,7 +191,7 @@ uint32_t mdioGPIOWrite(uint8_t phyAddr, uint8_t phyReg, uint16_t phyData )
     temp = (tempBuffer[0] << 24) | (tempBuffer[1] <<16) | (tempBuffer[2] << 8) | tempBuffer[3];
     bitsOut(temp, 32);
 
-    temp = (tempBuffer[4] << 24) | (tempBuffer[5] <<16) | (tempBuffer[2] << 6) | tempBuffer[7];
+    temp = (tempBuffer[4] << 24) | (tempBuffer[5] <<16) | (tempBuffer[6] << 8) | tempBuffer[7];
     bitsOut(temp, 32);
     BSP_ChangeMDIPinDir(false);//input
 
@@ -198,6 +199,60 @@ uint32_t mdioGPIOWrite(uint8_t phyAddr, uint8_t phyReg, uint16_t phyData )
 }
 
 
+/*
+ * @brief MDIO Indirect Read from Clause 45 register space via Clause 22
+ *
+ * @param [in] phyAddr - Hardware Phy address
+ * @param [in] phyReg - Register address in clause 45 combined devType and regAddr
+ * @param [out] phyData - pointer to the data buffer
+ * @return error if TA bit is not pulled down by the slave
+ *
+ * @details
+ *
+ * @sa
+ */
+uint32_t mdioGPIORead_cl22(uint8_t phyAddr, uint32_t phyReg, uint16_t *phyData )
+{
+    if(phyReg & 0xFF0000)
+    {
+      mdioGPIOWrite( phyAddr, ADDR_MMD_ACCESS_CNTRL, MMD_ACR_ADDRESS | DEVTYPE(phyReg) );
+      mdioGPIOWrite( phyAddr, ADDR_MMD_ACCESS, REGADDR( phyReg));
+      mdioGPIOWrite( phyAddr, ADDR_MMD_ACCESS_CNTRL, (MMD_ACR_DATA | DEVTYPE(phyReg)));
+      return mdioGPIORead( phyAddr, ADDR_MMD_ACCESS, phyData );
+    }
+    else
+    {
+      return mdioGPIORead( phyAddr, phyReg, phyData );
+    }
+}
+
+/*
+ * @brief MDIO Indirect Write to Clause 45 register space via Clause 22
+ *
+ * @param [in] phyAddr - Hardware Phy address
+ * @param [in] phyReg - Register address in clause 45 combined devAddr and regAddr
+ * @param [out] phyData -  data
+ * @return none
+ *
+ * @details
+ *
+ * @sa
+ */
+uint32_t mdioGPIOWrite_cl22(uint8_t phyAddr, uint32_t phyReg, uint16_t phyData )
+{
+    if(phyReg & 0xFF0000)
+    {
+      mdioGPIOWrite( phyAddr, ADDR_MMD_ACCESS_CNTRL, MMD_ACR_ADDRESS | DEVTYPE(phyReg) );
+      mdioGPIOWrite( phyAddr, ADDR_MMD_ACCESS, REGADDR( phyReg));
+      mdioGPIOWrite( phyAddr, ADDR_MMD_ACCESS_CNTRL, (MMD_ACR_DATA | DEVTYPE(phyReg)));
+      mdioGPIOWrite( phyAddr, ADDR_MMD_ACCESS, phyData );
+    }
+    else
+    {
+      mdioGPIOWrite( phyAddr, phyReg, phyData ); 
+    }
+    return 0;
+}
 
 /*
  * @brief Helping function MDIO Read  Clause 45
@@ -218,7 +273,7 @@ static uint32_t mdioRead45Clause(uint8_t phyAddr, uint8_t devType, uint16_t *phy
     uint8_t tempBuffer[8] = {0};
 
     uint32_t temp = 0;
-    uint32_t dataIn = 0;
+    uint16_t dataIn = 0;
 
     tempBuffer[i++] = 0xff;
     tempBuffer[i++] = 0xff;
@@ -243,9 +298,7 @@ static uint32_t mdioRead45Clause(uint8_t phyAddr, uint8_t devType, uint16_t *phy
     bitsOut(temp, 15); //TODO : changed from 15 to 16
     BSP_ChangeMDIPinDir(false);//input
     dataIn = bitsIn();
-    *phyData = (dataIn & 0xFFFF);
-
-    error = (dataIn & 0x10000) >> 16;
+    *phyData = dataIn;
 
     return error;
 }
@@ -265,8 +318,7 @@ static uint32_t mdioRead45Clause(uint8_t phyAddr, uint8_t devType, uint16_t *phy
 static uint32_t mdioWrite45Clause(uint8_t phyAddr, uint8_t devType, uint16_t phyData )
 {
     int32_t i = 0;
-    uint8_t tempBuffer[8] = {0};
-
+    uint8_t tempBuffer[8] = {0};  
     uint32_t preamble = 0xffffffff;
     uint32_t temp = 0;
 
@@ -300,60 +352,6 @@ static uint32_t mdioWrite45Clause(uint8_t phyAddr, uint8_t devType, uint16_t phy
 
   return 0;
 }
-
-/* This is currently not used, avoid compile warning. */
-#if 0
-/*
- * @brief Helping function MDIO Read Increment for Clause 45
- *
- * @param [in] phyAddr - Hardware Phy address
- * @param [in] devType - Device Type
- * @param [out] phyData - pointer to data buffer
- * @return error if TA bit is not pulled down by the slave
- *
- * @details
- *
- * @sa
- */
-static uint32_t mdioReadInc45Clause(uint8_t phyAddr, uint8_t devType, uint16_t *phyData )
-{
-    uint32_t error = 0;
-    int32_t i = 0;
-    uint8_t tempBuffer[8] = {0};
-
-    uint32_t temp = 0;
-    uint16_t dataIn = 0;
-
-    tempBuffer[i++] = 0xff;
-    tempBuffer[i++] = 0xff;
-    tempBuffer[i++] = 0xff;
-    tempBuffer[i++] = 0xff;
-
-
-    /* ST('00) + OP('10) + PHYAD(4 MSB) */
-    tempBuffer[i] = 0x20;
-    tempBuffer[i++] |= (phyAddr & 0x1F) >> 1;
-
-    /* PHYAD(1 LSB) + DEVTYPE (4) + 2 TA('00) */
-    tempBuffer[i] = (phyAddr & 0x01) << 7 ;
-    tempBuffer[i] |= (devType & 0x1F) << 2;
-    tempBuffer[i++] |= ( 0x03) ;
-    tempBuffer[i++] = 0xFF;
-    tempBuffer[i++] = 0xFF;
-
-    BSP_ChangeMDIPinDir(true);//output
-
-    temp = (tempBuffer[0] << 24) | (tempBuffer[1] <<16) | (tempBuffer[2] << 8) | tempBuffer[3];
-    bitsOut(temp, 32);
-    temp = (tempBuffer[4] << 24) | (tempBuffer[5] <<16) | (tempBuffer[5] << 8) | tempBuffer[6];
-    bitsOut(temp, 15);
-    BSP_ChangeMDIPinDir(false);//input
-    dataIn = bitsIn();
-    *phyData = dataIn;
-
-    return error;
-}
-#endif
 
 /*
  * @brief Helping function MDIO Writing the Device Type and Register Address Clause 45
@@ -407,109 +405,6 @@ static uint32_t mdioAddr45Clause(uint8_t phyAddr, uint8_t devType, uint16_t regA
 
   return 0;
 }
-/*
- * @brief Helping function MDIO Writing the Device Type and Register Address Clause 22
- *
- * @param [in] phyAddr - Hardware Phy address
- * @param [in] devType -  Device Type
- * @param [in] regAddr - Register Address
- * @return none
- *
- * @details
- *
- * @sa
- */
-static uint32_t mdioWrite22Clause(uint8_t phyAddr, uint8_t devType, uint16_t regAddr )
-{
-	int32_t i = 0;
-	uint8_t tempBuffer[8] = {0};
-
-	uint32_t temp = 0;
-	uint32_t preamble = 0xffffffff;
-
-	/*Preamble*/
-	delay();
-	tempBuffer[i++] = 0xff;
-	tempBuffer[i++] = 0xff;
-	tempBuffer[i++] = 0xff;
-	tempBuffer[i++] = 0xff;
-
-	/* ST('00) + OP('00) + PHYAD(4 MSB) */
-	tempBuffer[i] = 0x50 ;
-	tempBuffer[i++] |= (phyAddr & 0x1F) >> 1;
-
-	/* PHYAD(1 LSB) + DEVTYPE (4) + 2 TA('10) */
-	tempBuffer[i] = (phyAddr & 0x01) << 7 ;
-	tempBuffer[i] |= (devType & 0x1F) << 2;
-	tempBuffer[i++] |=  0x2 ;
-
-	/* DATA */
-	tempBuffer[i++] = regAddr >> 8;
-	tempBuffer[i++] = regAddr & 0xFF;
-
-
-    BSP_ChangeMDIPinDir(false);//input
-    BSP_ChangeMDIPinDir(true);//output
-    temp = (tempBuffer[4] << 24) | (tempBuffer[5] <<16) | (tempBuffer[6] << 8) | tempBuffer[7];
-    BSP_ChangeMDIPinDir(true);//output
-    bitsOut(preamble, 32);
-    bitsOut(temp, 32);
-    BSP_ChangeMDIPinDir(false);//input
-
-
-  return 0;
-}
-
-/*
- * @brief Helping function MDIO Read  Clause 22
- *
- * @param [in] phyAddr - Hardware Phy address
- * @param [in] devType - Device Type
- * @param [out] phyData - pointer to data buffer
- * @return error if TA bit is not pulled down by the slave
- *
- * @details
- *
- * @sa
- */
-static uint32_t mdioRead22Clause(uint8_t phyAddr, uint8_t devType, uint16_t *phyData )
-{
-    uint32_t error = 0;
-    int32_t i = 0;
-    uint8_t tempBuffer[8] = {0};
-
-    uint32_t temp = 0;
-    uint32_t dataIn = 0;
-
-    tempBuffer[i++] = 0xff;
-    tempBuffer[i++] = 0xff;
-    tempBuffer[i++] = 0xff;
-    tempBuffer[i++] = 0xff;
-
-    /* ST('00) + OP('11) + PHYAD(4 MSB) */
-    tempBuffer[i] = 0x60;
-    tempBuffer[i++] |= (phyAddr & 0x1F) >> 1;
-
-    /* PHYAD(1 LSB) + DEVTYPE (4) + 2 TA('00) */
-    tempBuffer[i] = (phyAddr & 0x01) << 7 ;
-    tempBuffer[i] |= (devType & 0x1F) << 2;
-    tempBuffer[i++] |= ( 0x03) ;
-    tempBuffer[i++] = 0xFF;
-    tempBuffer[i++] = 0xFF;
-
-    BSP_ChangeMDIPinDir(true);//output
-    temp = (tempBuffer[0] << 24) | (tempBuffer[1] <<16) | (tempBuffer[2] << 8) | tempBuffer[3];
-    bitsOut(temp, 32);
-    temp = (tempBuffer[4] << 24) | (tempBuffer[5] <<16) | (tempBuffer[2] << 6) | tempBuffer[7];
-    bitsOut(temp, 15); //TODO : changed from 15 to 16
-    BSP_ChangeMDIPinDir(false);//input
-    dataIn = bitsIn();
-    *phyData = (dataIn & 0xFFFF);
-
-    error = (dataIn & 0x10000) >> 16;
-
-    return error;
-}
 
 /*
  * @brief MDIO Read Clause 45
@@ -532,51 +427,6 @@ uint32_t mdioGPIORead_cl45(uint8_t phyAddr, uint32_t phyReg, uint16_t *phyData )
    return mdioRead45Clause(phyAddr, DEVTYPE(phyReg), phyData );
 }
 
-
-/*
- * @brief MDIO Read Clause 22
- *
- * @param [in] phyAddr - Hardware Phy address
- * @param [in] phyReg - Register address in clause 45 combined devType and regAddr
- * @param [out] phyData - pointer to the data buffer
- * @return error if TA bit is not pulled down by the slave
- *
- * @details
- *
- * @sa
- */
-uint32_t mdioGPIORead_cl22(uint8_t phyAddr, uint32_t phyReg, uint16_t *phyData )
-{
-  /*Applying the device type */
-//   mdioAddr45Clause(phyAddr, DEVTYPE(phyReg), REGADDR(phyReg) );
-
-   /*Reading from register address*/
-   //return mdioRead22Clause(phyAddr, DEVTYPE(phyReg), phyData );
-   return mdioRead22Clause(phyAddr, phyReg, phyData );
-}
-
-/*
- * @brief MDIO write Clause 22
- *
- * @param [in] phyAddr - Hardware Phy address
- * @param [in] phyReg - Register address in clause 45 combined devType and regAddr
- * @param [out] phyData - pointer to the data buffer
- * @return error if TA bit is not pulled down by the slave
- *
- * @details
- *
- * @sa
- */
-uint32_t mdioGPIOWrite_cl22(uint8_t phyAddr, uint32_t phyReg, uint16_t phyData )
-{
-  /*Applying the device type */
-//   mdioAddr45Clause(phyAddr, DEVTYPE(phyReg), REGADDR(phyReg) );
-
-   /*Reading from register address*/
-   //return mdioRead22Clause(phyAddr, DEVTYPE(phyReg), phyData );
-   return mdioWrite22Clause(phyAddr, phyReg, phyData );
-}
-
 /*
  * @brief MDIO Write Clause 45
  *
@@ -589,7 +439,7 @@ uint32_t mdioGPIOWrite_cl22(uint8_t phyAddr, uint32_t phyReg, uint16_t phyData )
  *
  * @sa
  */
-uint32_t mdioGPIOWrite_cl45(uint8_t phyAddr, uint32_t phyReg, uint16_t phyData )
+uint32_t mdioGPIOWrite_cl45(uint8_t phyAddr, uint32_t phyReg, uint16_t phyData)
 {
      /*Applying the device type*/
     mdioAddr45Clause(phyAddr, DEVTYPE(phyReg), REGADDR(phyReg));

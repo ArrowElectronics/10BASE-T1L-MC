@@ -1,7 +1,7 @@
 /*
  *---------------------------------------------------------------------------
  *
- * Copyright (c) 2020 Analog Devices, Inc. All Rights Reserved.
+ * Copyright (c) 2021 Analog Devices, Inc. All Rights Reserved.
  * This software is proprietary to Analog Devices, Inc.
  * and its licensors.By using this software you agree to the terms of the
  * associated Analog Devices Software License Agreement.
@@ -16,6 +16,8 @@
 #include "adin1100.h"
 #include "adi_phy.h"
 #include "hal.h"
+#define ADIN1100
+#define ADIN_S1
 
 
 /*!
@@ -55,7 +57,7 @@
 adi_eth_Result_e adin1100_Init(adin1100_DeviceHandle_t hDevice, adi_phy_DriverConfig_t *cfg)
 {
 
-    return phyDriverEntry.Init(&hDevice->pPhyDevice, cfg, HAL_1100PhyRead, HAL_1100PhyWrite);
+    return phyDriverEntry.Init(&hDevice->pPhyDevice, cfg, hDevice, HAL_1100PhyRead, HAL_1100PhyWrite);
 
 }
 
@@ -96,6 +98,57 @@ adi_eth_Result_e adin1100_ReInitPhy(adin1100_DeviceHandle_t hDevice)
 {
 
     return phyDriverEntry.ReInitPhy(hDevice->pPhyDevice);
+}
+
+/*!
+ * @brief           Get device identity.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [out]     pDevId      Device identity.
+ *
+ * @details
+ *
+ */
+adi_eth_Result_e adin1100_GetDeviceId(adin1100_DeviceHandle_t hDevice, adin1100_DeviceId_t *pDevId)
+{
+    adi_eth_Result_e    result = ADI_ETH_SUCCESS;
+    uint16_t            val16;
+
+    result = adin1100_PhyRead(hDevice, ADDR_MMD1_DEV_ID1, &val16);
+    if (result != ADI_ETH_SUCCESS)
+    {
+        goto end;
+    }
+    pDevId->phyId = (val16 << 16);
+
+    result = adin1100_PhyRead(hDevice, ADDR_MMD1_DEV_ID2, &val16);
+    if (result != ADI_ETH_SUCCESS)
+    {
+        goto end;
+    }
+    pDevId->phyId |= val16;
+
+#if !defined(ADIN_S1)
+    result = adin1100_PhyRead(hDevice, ADDR_MGMT_PRT_PKG, &val16);
+    if (result != ADI_ETH_SUCCESS)
+    {
+        goto end;
+    }
+    pDevId->pkgType = val16;
+#else
+    /* Not relevant in S1, assign a default value */
+    pDevId->pkgType = 0;
+#endif
+
+    result = adin1100_PhyRead(hDevice, 0x1E900E, &val16);
+    if (result != ADI_ETH_SUCCESS)
+    {
+        goto end;
+    }
+    pDevId->digRevNum = val16 & 0xFF;
+
+end:
+    return result;
 }
 
 /*!
@@ -144,10 +197,34 @@ adi_eth_Result_e adin1100_Reset(adin1100_DeviceHandle_t hDevice, adi_phy_ResetTy
  *                  - #ADI_PHY_LOOPBACK_MACIF_REMOTE
  *                  - #ADI_PHY_LOOPBACK_MACIF_REMOTE_SUPPRESS_RX
  *
+ *                  To return to normal operation, set loopback mode to #ADI_PHY_LOOPBACK_NONE.
  */
 adi_eth_Result_e adin1100_SetLoopbackMode(adin1100_DeviceHandle_t hDevice, adi_phy_LoopbackMode_e loopbackMode)
 {
     return phyDriverEntry.SetLoopbackMode(hDevice->pPhyDevice, loopbackMode);
+}
+
+/*!
+ * @brief           Set test mode.
+ *
+ * @param [in]      hDevice         Device driver handle.
+ * @param [in]      testMode        Test mode.
+ *
+ * @details         The ADIN1100 features a number of test modes that can
+ *                  be configured with this function:
+ *
+ *                  - #ADI_PHY_TEST_MODE_NONE
+ *                  - #ADI_PHY_TEST_MODE_1
+ *                  - #ADI_PHY_TEST_MODE_2
+ *                  - #ADI_PHY_TEST_MODE_3
+ *                  - #ADI_PHY_TEST_MODE_TX_DISABLE
+ *
+ *                  To return to normal operation, set loopback mode to #ADI_PHY_TEST_MODE_NONE.
+ *
+ */
+adi_eth_Result_e adin1100_SetTestMode(adin1100_DeviceHandle_t hDevice, adi_phy_TestMode_e testMode)
+{
+    return phyDriverEntry.SetTestMode(hDevice->pPhyDevice, testMode);
 }
 
 /*!
@@ -322,6 +399,7 @@ adi_eth_Result_e adin1100_GetLinkStatus(adin1100_DeviceHandle_t hDevice, adi_phy
     return phyDriverEntry.GetLinkStatus(hDevice->pPhyDevice, status);
 }
 
+#if defined(ADIN_S1)
 /*!
  * @brief           Enable or disable the LED.
  *
@@ -352,7 +430,41 @@ adi_eth_Result_e adin1100_LedBlinkTime(adin1100_DeviceHandle_t hDevice, uint32_t
 {
     return phyDriverEntry.LedBlinkTime(hDevice->pPhyDevice, blinkOn, blinkOff);
 }
+#else
+/*!
+ * @brief           Enable or disable the LED.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      ledSel      Selection of the LED port.
+ * @param [in]      enable      Enable/disable the LED.
+ *
+ * @details         The LED is enabled by default during driver initialization.
+ *
+ * @sa
+ */
+adi_eth_Result_e adin1100_LedEn(adin1100_DeviceHandle_t hDevice, adi_phy_LedPort_e ledSel, bool enable)
+{
+    return phyDriverEntry.LedEn(hDevice->pPhyDevice, ledSel, enable);
+}
 
+/*!
+ * @brief           Configure LED blink time.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      ledSel      Enable/disable the LED.
+ * @param [in]      blinkOn     LEN blink ON time.
+ * @param [in]      blinkOff    LEN blink OFF time.
+ *
+ * @details
+ *
+ * @sa
+ */
+adi_eth_Result_e adin1100_LedBlinkTime(adin1100_DeviceHandle_t hDevice, adi_phy_LedPort_e ledSel, uint32_t blinkOn, uint32_t blinkOff)
+{
+    return phyDriverEntry.LedBlinkTime(hDevice->pPhyDevice, ledSel, blinkOn, blinkOff);
+}
+
+#endif
 /*!
  * @brief           Get PHY device capabilities.
  *
@@ -363,7 +475,7 @@ adi_eth_Result_e adin1100_LedBlinkTime(adin1100_DeviceHandle_t hDevice, uint32_t
  *                 and 10BASE-T1L PMA local loopback.
  *
  */
-adi_eth_Result_e adin1100_GetCapabilities(adin1100_DeviceHandle_t hDevice, adi_phy_Capabilities_e *capabilities)
+adi_eth_Result_e adin1100_GetCapabilities(adin1100_DeviceHandle_t hDevice, uint16_t *capabilities)
 {
     return phyDriverEntry.GetCapabilities(hDevice->pPhyDevice, capabilities);
 }
@@ -399,6 +511,230 @@ adi_eth_Result_e adin1100_PhyRead(adin1100_DeviceHandle_t hDevice, uint32_t regA
 {
     return phyDriverEntry.PHY_Read(hDevice->pPhyDevice, regAddr, regData);
 }
+
+/*!
+ * @brief           Get link quality measure based on the Mean Square Error (MSE) value.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [out]     linkQuality Link quality struct.
+ *
+ * @details         This feature does not exist in S1 and calling this function return #ADI_ETH_NOT_IMPLEMENTED.
+ *
+ */
+adi_eth_Result_e adin1100_GetMseLinkQuality(adin1100_DeviceHandle_t hDevice, adi_phy_MseLinkQuality_t *mseLinkQuality)
+{
+    return phyDriverEntry.GetMseLinkQuality(hDevice->pPhyDevice, mseLinkQuality);
+}
+
+/*!
+ * @brief           Enable/disable frame generator.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      enable      Enable flag.
+ *
+ * @details         Enables/disables the frame generator based on the flag value.
+ *
+ */
+adi_eth_Result_e adin1100_FrameGenEn(adin1100_DeviceHandle_t hDevice, bool enable)
+{
+    return phyDriverEntry.FrameGenEn(hDevice->pPhyDevice, enable);
+}
+
+/*!
+ * @brief           Set frame generator mode.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      mode        Frame generator mode.
+ *
+ * @details         Sets one of the following frame generator modes:
+ *                  - #ADI_PHY_FRAME_GEN_MODE_BURST: burst mode
+ *                  - #ADI_PHY_FRAME_GEN_MODE_CONT: continuous mode
+ *
+ */
+adi_eth_Result_e adin1100_FrameGenSetMode(adin1100_DeviceHandle_t hDevice, adi_phy_FrameGenMode_e mode)
+{
+    return phyDriverEntry.FrameGenSetMode(hDevice->pPhyDevice, mode);
+}
+
+/*!
+ * @brief           Set frame generator frame counter.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      frameCnt    Frame count.
+ *
+ * @details         Updates the frame counter to the frameCnt value.
+ *                  The 32-bit argument is split in 16-bit values in
+ *                  order to update the 2 register FG_NFRM_H/FFG_NFRM_L.
+ *
+ */
+adi_eth_Result_e adin1100_FrameGenSetFrameCnt(adin1100_DeviceHandle_t hDevice, uint32_t frameCnt)
+{
+    return phyDriverEntry.FrameGenSetFrameCnt(hDevice->pPhyDevice, frameCnt);
+}
+
+/*!
+ * @brief           Set frame generator payload.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      payload     Payload type.
+ *
+ * @details         The valid payloads are:
+ *                  - #ADI_PHY_FRAME_GEN_PAYLOAD_NONE
+ *                  - #ADI_PHY_FRAME_GEN_PAYLOAD_RANDOM
+ *                  - #ADI_PHY_FRAME_GEN_PAYLOAD_0X00
+ *                  - #ADI_PHY_FRAME_GEN_PAYLOAD_0XFF
+ *                  - #ADI_PHY_FRAME_GEN_PAYLOAD_0x55
+ *                  - #ADI_PHY_FRAME_GEN_PAYLOAD_DECR
+ *
+ */
+adi_eth_Result_e adin1100_FrameGenSetFramePayload(adin1100_DeviceHandle_t hDevice, adi_phy_FrameGenPayload_e payload)
+{
+    return phyDriverEntry.FrameGenSetFramePayload(hDevice->pPhyDevice, payload);
+}
+
+/*!
+ * @brief           Set frame generator frame length.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      frameLen    Frame length.
+ *
+ * @details         Note the length of frames produced by the generator
+ *                  has an additional overhead of 18 bytes: 6 bytes for source address,
+ *                  6 bytes for destination address, 2 bytes for the length field and
+ *                  4 bytes for the FCS field.
+ *
+ *                  If the frame length is set to a value less than 46 bytes, which
+ *                  results in frames with length less than the minimum Ethernet frame
+ *                  (64 bytes), the generator willnot implement any padding.
+ */
+adi_eth_Result_e adin1100_FrameGenSetFrameLen(adin1100_DeviceHandle_t hDevice, uint16_t frameLen)
+{
+    return phyDriverEntry.FrameGenSetFrameLen(hDevice->pPhyDevice, frameLen);
+}
+
+/*!
+ * @brief           Set frame generator interframe gap.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      ifgLen      Interframe gap.
+ *
+ * @details
+ *
+ */
+adi_eth_Result_e adin1100_FrameGenSetIfgLen(adin1100_DeviceHandle_t hDevice, uint16_t ifgLen)
+{
+    return phyDriverEntry.FrameGenSetIfgLen(hDevice->pPhyDevice, ifgLen);
+}
+
+/*!
+ * @brief           Restart frame generator.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ *
+ * @details         Restarts the frame generator, this is required
+ *                  the enable frame generation. Before restart,
+ *                  the function will read the FG_DONE bit to clear it,
+ *                  in case it's still set from a previous run.
+ *
+ */
+adi_eth_Result_e adin1100_FrameGenRestart(adin1100_DeviceHandle_t hDevice)
+{
+    return phyDriverEntry.FrameGenRestart(hDevice->pPhyDevice);
+}
+
+/*!
+ * @brief           Read frame generator status.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [out]     fgDone      Frame generator status.
+ *
+ * @details         Read the FG_DONE bit to determine if the frame generation is complete.
+ *
+ */
+adi_eth_Result_e adin1100_FrameGenDone(adin1100_DeviceHandle_t hDevice, bool *fgDone)
+{
+    return phyDriverEntry.FrameGenDone(hDevice->pPhyDevice, fgDone);
+}
+
+/*!
+ * @brief           Enable/disable frame checker.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      enable      Enable flag.
+ *
+ * @details         Enables/disables the frame checker based on the flag value.
+ *
+ */
+adi_eth_Result_e adin1100_FrameChkEn(adin1100_DeviceHandle_t hDevice, bool enable)
+{
+    return phyDriverEntry.FrameChkEn(hDevice->pPhyDevice, enable);
+}
+
+/*!
+ * @brief           Select frame checker source.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [in]      mode        Frame checker source.
+ *
+ * @details         Sets one of the following frame checker sources:
+ *                  - #ADI_PHY_FRAME_CHK_SOURCE_PHY
+ *                  - #ADI_PHY_FRAME_CHK_SOURCE_MAC
+ *
+ */
+ adi_eth_Result_e adin1100_FrameChkSourceSelect(adin1100_DeviceHandle_t hDevice, adi_phy_FrameChkSource_e source)
+{
+    return phyDriverEntry.FrameChkSourceSelect(hDevice->pPhyDevice, source);
+}
+
+/*!
+ * @brief           Read frame checker frame count.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [out]     cnt         Frame count.
+ *
+ * @details         Note the frame count value is latched when reading RX_CNT_ERR, therefore
+ *                  a call to this function should be preceded by a call to adin1100_FrameChkReadRxErrCnt().
+ *
+ * @sa              adin1100_FrameChkReadRxErrCnt
+ */
+adi_eth_Result_e adin1100_FrameChkReadFrameCnt(adin1100_DeviceHandle_t hDevice, uint32_t *cnt)
+{
+    return phyDriverEntry.FrameChkReadFrameCnt(hDevice->pPhyDevice, cnt);
+}
+
+/*!
+ * @brief           Read frame checker receive errors.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [out]     cnt         Error counter.
+ *
+ * @details         Note the frame counter/error counter values are latched when reading RX_CNT_ERR, therefore
+ *                  a call to this function should preceded calls to adin1100_FrameChkReadFrameCnt()
+ *                  or adin1100_FrameChkReadErrorCnt().
+ *
+ * @sa              adin1100_FrameChkReadFrameCnt, adin1100_FrameChkReadErrorCnt
+ */
+adi_eth_Result_e adin1100_FrameChkReadRxErrCnt(adin1100_DeviceHandle_t hDevice, uint16_t *cnt)
+{
+    return phyDriverEntry.FrameChkReadRxErrCnt(hDevice->pPhyDevice, cnt);
+}
+
+/*!
+ * @brief           Read frame checker error counters.
+ *
+ * @param [in]      hDevice     Device driver handle.
+ * @param [out]     cnt         Error counters.
+ *
+ * @details         Note the error counter values are latched when reading RX_CNT_ERR, therefore
+ *                  a call to this function should be preceded by a call to adin1100_FrameChkReadRxErrCnt().
+ *
+ * @sa              adin1100_FrameChkReadRxErrCnt
+ */
+adi_eth_Result_e adin1100_FrameChkReadErrorCnt(adin1100_DeviceHandle_t hDevice, adi_phy_FrameChkErrorCounters_t *cnt)
+{
+    return phyDriverEntry.FrameChkReadErrorCnt(hDevice->pPhyDevice, cnt);
+}
+
 
 
 /** @}*/

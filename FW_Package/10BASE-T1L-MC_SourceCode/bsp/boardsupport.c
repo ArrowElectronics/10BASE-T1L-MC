@@ -262,7 +262,7 @@ uint32_t UartInit(void)
 
 uint32_t BSP_InitSystem(void)
 {
-    uint32_t error = SUCCESS;
+    uint8_t error = SUCCESS;
 
     do
     {

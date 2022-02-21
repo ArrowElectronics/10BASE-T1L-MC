@@ -92,6 +92,7 @@ adi_eth_Result_e appPhyConfig(adin1100_DeviceHandle_t hDevice)
     return result;
 }
 
+/* Call back function used in Register Call back as per Event*/
 void phyCallback(void *pCBParam, uint32_t Event, void *pArg)
 {
     irqFired = true;
@@ -101,7 +102,7 @@ int main(void)
 {
 
 	uint32_t                run = 1;
-	uint32_t                error;
+	uint8_t                error;
 	char                    strBuffer[250];
  	adi_phy_LinkStatus_e    linkstatus = ADI_PHY_LINK_STATUS_DOWN;
 	adi_phy_LinkStatus_e    old1100linkstatus = ADI_PHY_LINK_STATUS_DOWN;
@@ -109,7 +110,7 @@ int main(void)
 	adi_eth_Result_e        result;
 	adin1100_DeviceStruct_t dev;
 	adin1100_DeviceHandle_t hDevice = &dev;
-	adi_phy_Capabilities_e  capabilities;
+	uint16_t               capabilities;
 	adi_eth_Result_e		result_1200;
 
 
@@ -142,13 +143,29 @@ int main(void)
 
 	}
 	else
-		{
-			/* If PHY Initialization fails, blink Heart beat LED for 80% duty cycle  */
-			while(run)
-			{
-				BSP_HeartBeat_BLINK();
-			}
-		}
+    {
+        /* If PHY Initialization fails, blink Heart beat LED for 80% duty cycle  */
+        while(run)
+        {
+            BSP_HeartBeat_BLINK();
+            result = adin1100_Init(hDevice, &phyDrvConfig);
+            if (ADI_ETH_SUCCESS == result)
+            {
+                result = adin1100_GetCapabilities(hDevice, &capabilities);
+                if (capabilities & (1 << ADI_PHY_CAP_TX_HIGH_LEVEL))
+                {
+                    DEBUG_MESSAGE("10BASE-T1L Supports 2.4V Tx level");
+                }
+                else
+                {
+                    DEBUG_MESSAGE("10BASE-T1L do not support 2.4V Tx level");
+                }
+
+                BSP_HeartBeat();
+                break;
+            }
+        }
+    }
 
 
 
@@ -176,6 +193,12 @@ int main(void)
 		while(run)
 		{
 			BSP_HeartBeat_BLINK();
+			result_1200 = adin1200_config();
+			if(ADI_ETH_SUCCESS == result_1200)
+			{
+			    BSP_HeartBeat();
+			    break;
+			}
 		}
 	}
 
@@ -212,7 +235,7 @@ int main(void)
 					DEBUG_MESSAGE(strBuffer);
 				}
 
-				/* Update the old link status every time with new link */
+				/* Updates the old link status every time with new link */
 				old1100linkstatus = linkstatus;
 			}
 		}
@@ -241,6 +264,7 @@ int main(void)
 
 		/* HeartBeat LED to show MCU Health */
 		BSP_HeartBeat();
+
 	}
 
 	/* Get the UnInit result, if it is success or error */
