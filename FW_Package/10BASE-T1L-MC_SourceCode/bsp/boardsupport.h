@@ -48,7 +48,7 @@ void common_Perf(char *InfoString);
     if ((result) != (expected_value)) { \
       sprintf(aDebugString,"%s  %d", __FILE__,__LINE__); \
       common_Fail(aDebugString); \
-      sprintf(aDebugString,"%s Error Code: 0x%08X\n\rFailed\n\r",(s),(result)); \
+      sprintf(aDebugString,"%s Error Code: 0x%u\n\rFailed\n\r",(s),(result)); \
       common_Perf(aDebugString); \
       exit(0); \
     } \

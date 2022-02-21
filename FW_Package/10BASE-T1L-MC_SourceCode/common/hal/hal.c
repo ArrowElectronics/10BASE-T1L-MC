@@ -15,10 +15,11 @@
 
 #include <string.h>
 #include "hal.h"
-#include "mdio_gpio.h"
+//#include "mdio_gpio.h"
+#define MDIO_GPIO
 
 #ifdef MDIO_GPIO
-#include "../../mdio_gpio/mdio_gpio.h"
+#include "mdio_gpio.h"
 #endif
 
 /*
@@ -36,7 +37,19 @@
  */
 uint32_t HAL_1100PhyRead(uint8_t hwAddr, uint32_t RegAddr, uint16_t *data)
 {
-    return mdioGPIORead_cl45(hwAddr, RegAddr, data);
+#ifdef MDIO_GPIO
+#if defined(MDIO_CL22)
+    return (uint32_t)mdioGPIORead_cl22(hwAddr, RegAddr, data);
+#else
+    return (uint32_t)mdioGPIORead_cl45(hwAddr, RegAddr, data);
+#endif
+#else
+#if defined(MDIO_CL22)
+    return (uint32_t)adi_MdioRead_Cl22(hwAddr, RegAddr, data);
+#else
+    return (uint32_t)adi_MdioRead_Cl45(hwAddr, RegAddr, data);
+#endif
+#endif
 }
 
 /*
@@ -53,7 +66,19 @@ uint32_t HAL_1100PhyRead(uint8_t hwAddr, uint32_t RegAddr, uint16_t *data)
  */
 uint32_t HAL_1100PhyWrite(uint8_t hwAddr, uint32_t RegAddr, uint16_t data)
 {
+#ifdef MDIO_GPIO
+#if defined(MDIO_CL22)
+  return mdioGPIOWrite_cl22(hwAddr, RegAddr, data);
+#else  
   return mdioGPIOWrite_cl45(hwAddr, RegAddr, data);
+#endif
+#else
+#if defined(MDIO_CL22)
+  return adi_MdioWrite_Cl22(hwAddr, RegAddr, data);
+#else
+  return adi_MdioWrite_Cl45(hwAddr, RegAddr, data);
+#endif
+#endif
 }
 
 /*
@@ -134,6 +159,11 @@ uint32_t HAL_EnableIrq(void)
 //    BSP_EnableIRQ();
 
     return ADI_HAL_SUCCESS;
+}
+
+uint32_t HAL_GetPendingIrq(void)
+{
+    return NVIC_GetPendingIRQ(SYS_GPIO_INTA_IRQn);
 }
 
 uint32_t HAL_GetEnableIrq(void)
