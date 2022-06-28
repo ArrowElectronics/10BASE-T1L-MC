@@ -1,3 +1,15 @@
+/*
+ *---------------------------------------------------------------------------
+ *
+ * Copyright (c) 2020 Analog Devices, Inc. All Rights Reserved.
+ * This software is proprietary to Analog Devices, Inc.
+ * and its licensors.By using this software you agree to the terms of the
+ * associated Analog Devices Software License Agreement.
+ *
+ *---------------------------------------------------------------------------
+ */
+
+
 /* Board Support - Initialization of GPIO, MDIO_GPIO Bit Banging, UART and LED Initializations  */
 
 #include <ctype.h>
