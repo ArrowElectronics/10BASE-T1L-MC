@@ -17,6 +17,7 @@
 #define ADI_PHY_H
 #define ADIN1100
 #define ADIN_S1
+#define MDIO_GPIO
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -336,8 +337,10 @@ typedef struct
     HAL_ReadFn_t            readFn;
     HAL_WriteFn_t           writeFn;
     adi_phy_LinkStatus_e    linkStatus;
+#ifndef MDIO_GPIO
     adi_eth_Callback_t      cbFunc;
     uint32_t                cbEvents;
+#endif
     void                    *cbParam;
     void                    *adinDevice;
     uint32_t                irqMask;
@@ -350,8 +353,10 @@ typedef struct
     adi_eth_Result_e (*Init)                    (adi_phy_Device_t **hPhyDevice, adi_phy_DriverConfig_t *cfg, void *adinDevice, HAL_ReadFn_t readFn, HAL_WriteFn_t writeFn);
     adi_eth_Result_e (*UnInit)                  (adi_phy_Device_t *hDevice);
     adi_eth_Result_e (*ReInitPhy)               (adi_phy_Device_t *hDevice);
+#ifndef MDIO_GPIO
     adi_eth_Result_e (*RegisterCallback)        (adi_phy_Device_t *hDevice, adi_eth_Callback_t cbFunc, uint32_t cbEvents, void *cbParam);
     adi_eth_Result_e (*ReadIrqStatus)           (adi_phy_Device_t *hDevice, uint32_t *status);
+#endif
     adi_eth_Result_e (*EnterSoftwarePowerdown)  (adi_phy_Device_t *hDevice);
     adi_eth_Result_e (*ExitSoftwarePowerdown)   (adi_phy_Device_t *hDevice);
     adi_eth_Result_e (*GetSoftwarePowerdown)    (adi_phy_Device_t *hDevice, bool *enable);

@@ -15,6 +15,7 @@
 
 #ifndef ADI_ETH_COMMON_H
 #define ADI_ETH_COMMON_H
+#define MDIO_GPIO
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,6 +63,7 @@ typedef enum
     ADI_ETH_PLACEHOLDER_ERROR,          /*!< Unassigned (placeholder) error.                            */
 } adi_eth_Result_e;
 
+#ifndef MDIO_GPIO
 /*!
 * @brief Callback function definition for the Ethernet devices.
 */
@@ -73,7 +75,7 @@ typedef void (* adi_eth_Callback_t) (   /*!< Callback function pointer */
 #ifdef __cplusplus
 }
 #endif
-
+#endif
 #endif /* ADI_ETH_COMMON_H */
 
 /** @}*/

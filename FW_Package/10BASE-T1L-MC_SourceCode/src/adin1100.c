@@ -19,7 +19,6 @@
 #define ADIN1100
 #define ADIN_S1
 
-
 /*!
  * @brief           ADIN1100 driver initialization.
  *
@@ -346,6 +345,7 @@ adi_eth_Result_e adin1100_GetSoftwarePowerdown(adin1100_DeviceHandle_t hDevice, 
     return phyDriverEntry.GetSoftwarePowerdown(hDevice->pPhyDevice, flag);
 }
 
+#ifndef MDIO_GPIO
 /*!
  * @brief           Register callback for the PHY interrupt.
  *
@@ -366,6 +366,7 @@ adi_eth_Result_e adin1100_RegisterCallback(adin1100_DeviceHandle_t hDevice, adi_
     return phyDriverEntry.RegisterCallback(hDevice->pPhyDevice, cbFunc, cbEvents, (void *)hDevice);
 }
 
+
 /*!
  * @brief           Read interrupt status.
  *
@@ -384,6 +385,7 @@ adi_eth_Result_e adin1100_ReadIrqStatus(adin1100_DeviceHandle_t hDevice, uint32_
 {
     return phyDriverEntry.ReadIrqStatus(hDevice->pPhyDevice, status);
 }
+#endif
 
 /*!
  * @brief           Read link status.

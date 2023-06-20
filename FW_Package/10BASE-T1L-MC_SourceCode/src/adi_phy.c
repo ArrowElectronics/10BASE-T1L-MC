@@ -15,15 +15,21 @@
 
 #include "adi_phy.h"
 #include "hal.h"
+#include "boardsupport.h"
 #define ADIN1100
 #define ADIN_S1
+#define MDIO_GPIO
+
+
 
 static adi_eth_Result_e         PHY_Init                    (adi_phy_Device_t **hPhyDevice, adi_phy_DriverConfig_t *cfg, void *adinDevice, HAL_ReadFn_t readFn, HAL_WriteFn_t writeFn);
 static adi_eth_Result_e         PHY_UnInit                  (adi_phy_Device_t *hDevice);
 static adi_eth_Result_e         PHY_ReInitPhy               (adi_phy_Device_t *hDevice);
 
+#ifndef MDIO_GPIO
 static adi_eth_Result_e         PHY_RegisterCallback        (adi_phy_Device_t *hDevice, adi_eth_Callback_t cbFunc, uint32_t cbEvents, void *cbParam);
 static adi_eth_Result_e         PHY_ReadIrqStatus           (adi_phy_Device_t *hDevice, uint32_t *status);
+#endif
 
 static adi_eth_Result_e         PHY_AnAdvTxMode             (adi_phy_Device_t *hDevice, adi_phy_AnAdvTxMode_e txMode);
 static adi_eth_Result_e         PHY_AnAdvMstSlvCfg          (adi_phy_Device_t *hDevice, adi_phy_AnAdvMasterSlaveCfg_e msCfg);
@@ -92,8 +98,9 @@ static adi_eth_Result_e         waitMdio                    (adi_phy_Device_t *h
 #endif
 static adi_eth_Result_e         phyInit                     (adi_phy_Device_t *hDevice);
 static adi_eth_Result_e         phyStaticConfig             (adi_phy_Device_t *hDevice, uint32_t modelNum, uint32_t revNum);
+#ifndef MDIO_GPIO
 static void                     irqCb                       (void *pCBParam, uint32_t Event, void *pArg);
-
+#endif
 #if !defined(ADIN_S1)
 static const uint16_t convMseToSqi[ADI_PHY_SQI_NUM_ENTRIES - 1] = {
     0x0A74, 0x084E, 0x0698, 0x053D, 0x0429, 0x034E, 0x02A0
@@ -131,11 +138,13 @@ adi_eth_Result_e PHY_Init(adi_phy_Device_t **phDevice, adi_phy_DriverConfig_t *c
 
     hDevice->readFn = readFn;
     hDevice->writeFn = writeFn;
-
+    DEBUG_MESSAGE("Before cbFunc PHY_INIT");
+#ifndef MDIO_GPIO
     /* Reset callback settings */
     hDevice->cbFunc = NULL;
     hDevice->cbEvents = 0;
-
+#endif
+    DEBUG_MESSAGE("After cbFunc PHY_INIT");
     hDevice->adinDevice = adinDevice;
 
     /* Disable IRQ whether the interrupt is enabled or not */
@@ -269,7 +278,7 @@ adi_eth_Result_e phyInit(adi_phy_Device_t *hDevice)
 
     /* Values of event enums are identical to respective interrupt masks */
     /* Hardware reset and hardware error interrupts are always enabled   */
-    irqMask = ADI_PHY_CRSM_HW_ERROR | BITM_CRSM_IRQ_MASK_CRSM_HRD_RST_IRQ_EN | hDevice->cbEvents;
+    irqMask = ADI_PHY_CRSM_HW_ERROR | BITM_CRSM_IRQ_MASK_CRSM_HRD_RST_IRQ_EN;
     result = PHY_Write(hDevice, ADDR_CRSM_IRQ_MASK, (irqMask & 0xFFFF));
     if (result != ADI_ETH_SUCCESS)
     {
@@ -277,7 +286,7 @@ adi_eth_Result_e phyInit(adi_phy_Device_t *hDevice)
     }
 
     /* Values of event enums are identical to respective interrupt masks */
-    irqMask = BITM_CRSM_IRQ_MASK_CRSM_HRD_RST_IRQ_EN | hDevice->cbEvents;
+    irqMask = BITM_CRSM_IRQ_MASK_CRSM_HRD_RST_IRQ_EN;
     result = PHY_Write(hDevice, ADDR_CRSM_IRQ_MASK, (irqMask & 0xFFFF));
     result = PHY_Write(hDevice, ADDR_PHY_SUBSYS_IRQ_MASK, ((irqMask >> 16) & 0xFFFF));
     if (result != ADI_ETH_SUCCESS)
@@ -341,6 +350,7 @@ end:
 
 }
 
+#ifndef MDIO_GPIO
 /**************************************************/
 /***                                            ***/
 /***             Interrupt Handling             ***/
@@ -415,7 +425,9 @@ static void irqCb(void *pCBParam, uint32_t Event, void *pArg)
         hDevice->cbFunc(hDevice->cbParam, 0, NULL);
     }
 }
+#endif
 
+#ifndef MDIO_GPIO
 /*
  * @brief           Read interrupt status.
  *
@@ -458,6 +470,7 @@ adi_eth_Result_e PHY_ReadIrqStatus(adi_phy_Device_t *hDevice, uint32_t *status)
 end:
     return result;
 }
+#endif
 
 /**************************************************/
 /***                                            ***/
@@ -2098,8 +2111,10 @@ adi_phy_DriverEntry_t phyDriverEntry =
     PHY_Init,
     PHY_UnInit,
     PHY_ReInitPhy,
+#ifndef MDIO_GPIO
     PHY_RegisterCallback,
     PHY_ReadIrqStatus,
+#endif
     PHY_EnterSoftwarePowerdown,
     PHY_ExitSoftwarePowerdown,
     PHY_GetSoftwarePowerdown,

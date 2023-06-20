@@ -75,8 +75,9 @@ adi_eth_Result_e    adin1100_UnInit                  (adin1100_DeviceHandle_t hD
 adi_eth_Result_e    adin1100_ReInitPhy               (adin1100_DeviceHandle_t hDevice);
 
 adi_eth_Result_e    adin1100_GetDeviceId             (adin1100_DeviceHandle_t hDevice, adin1100_DeviceId_t *pDevId);
-
+#ifndef MDIO_GPIO
 adi_eth_Result_e    adin1100_RegisterCallback        (adin1100_DeviceHandle_t hDevice, adi_eth_Callback_t cbFunc, uint32_t cbEvents);
+#endif
 adi_eth_Result_e    adin1100_ReadIrqStatus           (adin1100_DeviceHandle_t hDevice, uint32_t *status);
 
 adi_eth_Result_e    adin1100_AnAdvTxMode             (adin1100_DeviceHandle_t hDevice, adi_phy_AnAdvTxMode_e txMode);

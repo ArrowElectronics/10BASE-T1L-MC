@@ -56,6 +56,7 @@
 #include "uart.h"
 #include "dma.h"
 
+
 /***** Definitions *****/
 
 #define true				1
@@ -127,7 +128,6 @@ int main(void)
 	/* powered up. This is worse if PHY address is configured as */
 	/* 0 (default configuration of the board).                   */
 	phyDrvConfig.addr = 0x02;
-
 	result = adin1100_Init(hDevice, &phyDrvConfig);
 	if (ADI_ETH_SUCCESS == result)
 	{
@@ -173,9 +173,11 @@ int main(void)
 	result = appPhyConfig(hDevice);
 	DEBUG_RESULT("appPhyConfig", result, ADI_ETH_SUCCESS);
 
+#ifndef MDIO_GPIO
 	/* Register callback for selected events. */
 	result = adin1100_RegisterCallback(hDevice, phyCallback, ADI_PHY_EVT_HW_RESET | ADI_PHY_EVT_LINK_STAT_CHANGE);
 	DEBUG_RESULT("adin1100_RegisterCallback", result, ADI_ETH_SUCCESS);
+#endif
 
 	/* Exit software power down and attempt to bring up the link. */
 	result = adin1100_ExitSoftwarePowerdown(hDevice);
