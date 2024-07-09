@@ -24,4 +24,7 @@ Hardware Package of 10BASE-T1L-MC contains Architectural Level Block Diagram, Ge
 
 Mechanical Packages inlcudes CAD Data, Mechanical BoM, Mechanical Drawing, Packaging Instructions.
 
+# Terms of Sale
+
+Please refer to e-Infochips Private Limited Terms and Conditions of Sale found [here](https://uat.arrow.com/en/legal/terms-and-conditions-of-sale)
 
